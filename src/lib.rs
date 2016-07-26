@@ -1,3 +1,11 @@
+/*
+  Copyright (C) 2016 Janne Blomqvist
+
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 // Expand a hostlist to a vector of hostnames
 pub fn expand(hostlist: &str) -> Vec<String> {
     // Is this a hostlist at all?
