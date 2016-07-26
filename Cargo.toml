@@ -1,0 +1,6 @@
+[package]
+name = "hostlist"
+version = "0.1.0"
+authors = ["Janne Blomqvist <blomqvist.janne@gmail.com>"]
+
+[dependencies]
