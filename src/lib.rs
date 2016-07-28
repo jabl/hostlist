@@ -13,10 +13,23 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
+
+#[macro_use]
+extern crate nom;
+
+use std::str;
+use nom::*;
+use nom::IResult::*;
+
+// The first part of a hostname, before the hostlist syntax begins
+named!(basehn, take_until!(b"["));
+named!(hostrange, delimited!(char!(b'['), take_until!(b"]"), char!(b']')));
 
 // Expand a hostlist to a vector of hostnames
 pub fn expand(hostlist: &str) -> Vec<String> {
+
+
     // Is this a hostlist at all?
     let baseend = match  hostlist.find('[') {
         None => return vec![hostlist.to_string()],
@@ -25,6 +38,29 @@ pub fn expand(hostlist: &str) -> Vec<String> {
     vec![hostlist[0..baseend].to_string()]
 }
 
+
+// Tests of private functions
+#[test]
+fn check_base() {
+    let hostlist = b"foo[1-3]";
+    let res = basehn(hostlist);
+    let out = match res {
+        Done(i, o) => str::from_utf8(&o).unwrap(),
+        _ => panic!()
+    };
+    assert_eq!(out, "foo");
+}
+
+
+#[test]
+fn print_hostrange() {
+    let hostlist = b"foo[1-3]";
+    let res = hostrange(hostlist);
+    println!("{:?}", res);
+}
+
+
+// Tests of public functions
 #[cfg(test)]
 mod tests {
     use super::*;
