@@ -24,6 +24,7 @@ use nom::IResult::*;
 
 // The first part of a hostname, before the hostlist syntax begins
 named!(basehn, take_until!(b"["));
+// A hostrange (something enclosed with [])
 named!(hostrange, delimited!(char!(b'['), take_until!(b"]"), char!(b']')));
 
 // Expand a hostlist to a vector of hostnames
@@ -53,10 +54,15 @@ fn check_base() {
 
 
 #[test]
-fn print_hostrange() {
-    let hostlist = b"foo[1-3]";
+fn simple_hostrange() {
+    let hostlist = b"[1-3]";
     let res = hostrange(hostlist);
-    println!("{:?}", res);
+    let mut out = "";
+    match res {
+        Done(i, o) => out = str::from_utf8(&o).unwrap(),
+        _ => println!("{:?}", res)
+    }
+    assert_eq!(out, "1-3");
 }
 
 
