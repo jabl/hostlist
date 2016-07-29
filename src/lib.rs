@@ -28,14 +28,11 @@ named!(hostname_part, take_until!(b"["));
 named!(range, delimited!(char!(b'['), take_until!(b"]"), char!(b']')));
 
 // hostname-range pair
-//named!(hnrangepair<&[u8], (&[u8], Option<&[u8]>) >, tuple!(basehn, opt!(hostrange)));
+named!(hnrangepair<&[u8], (Option<&[u8]>, Option<&[u8]>) >, tuple!(
+    opt!(hostname_part), opt!(range)));
 
 // A complete hostlist, e.g. foo[1-3]
-named!(hostlist<&[u8], &[u8] >, chain!(
-    name: opt!(hostname_part) ~
-        range: opt!(range),
-    || { name.unwrap()
-    }));
+named!(hostlist<&[u8], Vec<(Option<&[u8]>, Option<&[u8]>)> >, many1!(hnrangepair));
 
 
 // Expand a hostlist to a vector of hostnames
@@ -81,7 +78,7 @@ fn simple_hostlist() {
     let myhl = b"foo[1-3]";
     let res = hostlist(myhl);
     let out = match res {
-        Done(_, o) => str::from_utf8(&o).unwrap(),
+        Done(_, o) => str::from_utf8(&o[0].0.unwrap()).unwrap(),
         _ => panic!()
     };
     assert_eq!(out, "foo");
