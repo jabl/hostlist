@@ -22,10 +22,21 @@ use std::str;
 use nom::*;
 use nom::IResult::*;
 
-// The first part of a hostname, before the hostlist syntax begins
-named!(basehn, take_until!(b"["));
-// A hostrange (something enclosed with [])
-named!(hostrange, delimited!(char!(b'['), take_until!(b"]"), char!(b']')));
+// A name component part of a hostlist, before the hostlist syntax begins
+named!(hostname_part, take_until!(b"["));
+// A range (something enclosed with [])
+named!(range, delimited!(char!(b'['), take_until!(b"]"), char!(b']')));
+
+// hostname-range pair
+//named!(hnrangepair<&[u8], (&[u8], Option<&[u8]>) >, tuple!(basehn, opt!(hostrange)));
+
+// A complete hostlist, e.g. foo[1-3]
+named!(hostlist<&[u8], &[u8] >, chain!(
+    name: opt!(hostname_part) ~
+        range: opt!(range),
+    || { name.unwrap()
+    }));
+
 
 // Expand a hostlist to a vector of hostnames
 pub fn expand(hostlist: &str) -> Vec<String> {
@@ -44,9 +55,9 @@ pub fn expand(hostlist: &str) -> Vec<String> {
 #[test]
 fn check_base() {
     let hostlist = b"foo[1-3]";
-    let res = basehn(hostlist);
+    let res = hostname_part(hostlist);
     let out = match res {
-        Done(i, o) => str::from_utf8(&o).unwrap(),
+        Done(_, o) => str::from_utf8(&o).unwrap(),
         _ => panic!()
     };
     assert_eq!(out, "foo");
@@ -56,15 +67,25 @@ fn check_base() {
 #[test]
 fn simple_hostrange() {
     let hostlist = b"[1-3]";
-    let res = hostrange(hostlist);
+    let res = range(hostlist);
     let mut out = "";
     match res {
-        Done(i, o) => out = str::from_utf8(&o).unwrap(),
+        Done(_, o) => out = str::from_utf8(&o).unwrap(),
         _ => println!("{:?}", res)
     }
     assert_eq!(out, "1-3");
 }
 
+#[test]
+fn simple_hostlist() {
+    let myhl = b"foo[1-3]";
+    let res = hostlist(myhl);
+    let out = match res {
+        Done(_, o) => str::from_utf8(&o).unwrap(),
+        _ => panic!()
+    };
+    assert_eq!(out, "foo");
+}
 
 // Tests of public functions
 #[cfg(test)]
