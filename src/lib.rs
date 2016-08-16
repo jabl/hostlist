@@ -21,6 +21,7 @@ extern crate nom;
 use std::str;
 use nom::*;
 use nom::IResult::*;
+use std::collections::BTreeMap;
 
 // A name component part of a hostlist, before the hostlist syntax begins
 named!(hostname_part, take_until!(b"["));
@@ -32,19 +33,54 @@ named!(hnrangepair<&[u8], (Option<&[u8]>, Option<&[u8]>) >, tuple!(
     opt!(hostname_part), opt!(range)));
 
 // A complete hostlist, e.g. foo[1-3]
-named!(hostlist<&[u8], Vec<(Option<&[u8]>, Option<&[u8]>)> >, many1!(hnrangepair));
+named!(hostlist<&[u8], Vec<(Option<&[u8]>, Option<&[u8]>)> >,
+       many1!(hnrangepair));
 
+// Convert a range in string format to a btreemap
+// In principle one could use an interval or segment tree, but here
+// we're just merging overlapping intervals instead of keeping track
+// of them. So a plain btreemap is fine. The key is the lower end of
+// the range, the value is the upper end.
+fn range2tree(a_str: &str) -> BTreeMap<i32, i32> {
+    let mut range = BTreeMap::new();
+    range.insert(1, 3);
+    range
+}
 
 // Expand a hostlist to a vector of hostnames
-pub fn expand(hostlist: &str) -> Vec<String> {
+pub fn expand(a_str: &str) -> Vec<String> {
 
 
     // Is this a hostlist at all?
-    let baseend = match  hostlist.find('[') {
+    /*let baseend = match  hostlist.find('[') {
         None => return vec![hostlist.to_string()],
         Some(i) => i,
     };
-    vec![hostlist[0..baseend].to_string()]
+    vec![hostlist[0..baseend].to_string()]*/
+
+    // New impl using Nom
+    let p = hostlist(a_str.as_bytes());
+    let res: Vec<(Option<&[u8]>, Option<&[u8]>)>; 
+    match p {
+        Done(_, o) => res = o,
+        _ => { println!("Invalid hostlist: {:?}", p);
+               panic!();
+        }
+    };
+    let mut res2: Vec<(&str, BTreeMap<i32, i32>)> = Vec::new();
+    for e in &res {
+        let base = match e.0 {
+            None => "",
+            Some(o) => str::from_utf8(&o).unwrap(),
+        };
+        let range = range2tree(match e.1 {
+            None => "",
+            Some(i) => str::from_utf8(&i).unwrap(),
+        });
+        res2.push((base, range));
+    }
+    println!("res2: {:?}", res2);
+    vec!["food".to_string()]
 }
 
 
@@ -95,6 +131,6 @@ mod tests {
 
     #[test]
     fn test_expand() {
-        assert_eq!(expand("foo"), vec!["foo"]);
+        assert_eq!(expand("foo[1-3]"), vec!["foo1", "foo2", "foo3"]);
     }
 }
