@@ -15,12 +15,10 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#[macro_use]
 extern crate nom;
 
 use std::str;
 use nom::*;
-//use nom::IResult::*;
 use std::collections::BTreeMap;
 
 // A name component part of a hostlist, before the hostlist syntax begins
