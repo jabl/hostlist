@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-extern crate nom;
+
 
 use std::str;
 use nom::*;
