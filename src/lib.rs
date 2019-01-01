@@ -108,12 +108,35 @@ fn simple_hostrange() {
 }
 
 #[test]
+fn simple_hnrangepair() {
+    let hostlist = b"foo[1-3]";
+    let res = hnrangepair(hostlist);
+    let out = match res {
+        Ok((_, o)) => str::from_utf8(&o.0.unwrap()).unwrap(),
+        _ => { println!("{:?}", res);
+               panic!();
+        }
+    };
+    assert_eq!(out, "foo");
+
+    let out = match res {
+        Ok((_, o)) => str::from_utf8(&o.1.unwrap()).unwrap(),
+        _ => { println!("{:?}", res);
+               panic!();
+        }
+    };
+    assert_eq!(out, "1-3");
+}
+
+#[test]
 fn simple_hostlist() {
     let myhl = b"foo[1-3]";
     let res = hostlist(myhl);
     let out = match res {
         Ok((_, o)) => str::from_utf8(&o[0].0.unwrap()).unwrap(),
-        _ => panic!()
+        _ => { println!("{:?}", res);
+               panic!();
+        }
     };
     assert_eq!(out, "foo");
 }
