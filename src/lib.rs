@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2016  Janne Blomqvist
+    Copyright (C) 2016-2018  Janne Blomqvist
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,13 +20,13 @@ extern crate nom;
 
 use std::str;
 use nom::*;
-use nom::IResult::*;
+//use nom::IResult::*;
 use std::collections::BTreeMap;
 
 // A name component part of a hostlist, before the hostlist syntax begins
-named!(hostname_part, take_until!(b"["));
+named!(hostname_part, take_until!("["));
 // A range (something enclosed with [])
-named!(range, delimited!(char!(b'['), take_until!(b"]"), char!(b']')));
+named!(range, delimited!(char!('['), take_until!("]"), char!(']')));
 
 // hostname-range pair
 named!(hnrangepair<&[u8], (Option<&[u8]>, Option<&[u8]>) >, tuple!(
@@ -62,7 +62,7 @@ pub fn expand(a_str: &str) -> Vec<String> {
     let p = hostlist(a_str.as_bytes());
     let res: Vec<(Option<&[u8]>, Option<&[u8]>)>; 
     match p {
-        Done(_, o) => res = o,
+        Ok((_, o)) => res = o,
         _ => { println!("Invalid hostlist: {:?}", p);
                panic!();
         }
@@ -90,7 +90,7 @@ fn check_base() {
     let hostlist = b"foo[1-3]";
     let res = hostname_part(hostlist);
     let out = match res {
-        Done(_, o) => str::from_utf8(&o).unwrap(),
+        Ok((_, o)) => str::from_utf8(&o).unwrap(),
         _ => panic!()
     };
     assert_eq!(out, "foo");
@@ -103,7 +103,7 @@ fn simple_hostrange() {
     let res = range(hostlist);
     let mut out = "";
     match res {
-        Done(_, o) => out = str::from_utf8(&o).unwrap(),
+        Ok((_, o)) => out = str::from_utf8(&o).unwrap(),
         _ => println!("{:?}", res)
     }
     assert_eq!(out, "1-3");
@@ -114,7 +114,7 @@ fn simple_hostlist() {
     let myhl = b"foo[1-3]";
     let res = hostlist(myhl);
     let out = match res {
-        Done(_, o) => str::from_utf8(&o[0].0.unwrap()).unwrap(),
+        Ok((_, o)) => str::from_utf8(&o[0].0.unwrap()).unwrap(),
         _ => panic!()
     };
     assert_eq!(out, "foo");
