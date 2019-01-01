@@ -5,4 +5,4 @@ authors = ["Janne Blomqvist <blomqvist.janne@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-nom = "^4.1"
+nom = { version = "^4.1", features = ["verbose-errors"] }
