@@ -41,7 +41,7 @@ named!(hostlist<&[u8], Vec<(Option<&[u8]>, Option<&[u8]>)> >,
 // we're just merging overlapping intervals instead of keeping track
 // of them. So a plain btreemap is fine. The key is the lower end of
 // the range, the value is the upper end.
-fn range2tree(a_str: &str) -> BTreeMap<i32, i32> {
+fn range2tree(_a_str: &str) -> BTreeMap<i32, i32> {
     let mut range = BTreeMap::new();
     range.insert(1, 3);
     range
