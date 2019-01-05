@@ -122,6 +122,16 @@ fn check_base() {
     assert_eq!(out, "foo");
 }
 
+#[test]
+fn listexpr_1() {
+    let le = b"1";
+    let res = listexpr(CompleteByteSlice(le));
+    let out = match res {
+        Ok((_, o)) => str::from_utf8(&o[0].0).unwrap(),
+        _ => panic!()
+    };
+    assert_eq!(out, "1");
+}
 
 #[test]
 fn simple_hostrange() {
