@@ -22,9 +22,35 @@ use nom::*;
 use nom::types::CompleteByteSlice;
 use std::collections::BTreeMap;
 
+/* Maybe this for storing parsed listexpr's?
+struct Range {
+    low: i32,
+    high: i32
+}
+
+enum HostListIndex {
+    Single(i32),
+    Range(Range)
+}
+ */
+
 // A name component part of a hostlist, before the hostlist syntax begins
 //named!(hostname_part, take_until!("["));
 named!(hostname_part<CompleteByteSlice, CompleteByteSlice>, take_while!(|ch| ch != b'['));
+
+// A hostlist list expressions, the stuff within []. E.g. 1,2,5-6,9
+named!(listexpr<CompleteByteSlice,
+       Vec<(CompleteByteSlice, Option<CompleteByteSlice>)> >,
+       separated_nonempty_list!(
+           char!(','),
+           tuple!(take_while!(is_digit),
+                  opt!(preceded!(char!('-'),
+                                 take_while!(is_digit))
+                  )
+           )
+       )
+);
+
 // A range (something enclosed with [])
 named!(range<CompleteByteSlice, CompleteByteSlice>, delimited!(char!('['), take_until!("]"), char!(']')));
 
