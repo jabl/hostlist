@@ -134,6 +134,21 @@ fn listexpr_1() {
 }
 
 #[test]
+fn listexpr_2() {
+    let le = b"1,2,3-5";
+    let res = listexpr(CompleteByteSlice(le));
+    let out = match res {
+        Ok((_, o)) => o,
+        _ => panic!()
+    };
+    assert_eq!(str::from_utf8(&out[0].0).unwrap(), "1");
+    assert_eq!(str::from_utf8(&out[1].0).unwrap(), "2");
+    assert_eq!(str::from_utf8(&out[2].0).unwrap(), "3");
+    assert_eq!(str::from_utf8(&out[2].1.unwrap()).unwrap(), "5");
+}
+
+
+#[test]
 fn simple_hostrange() {
     let hostlist = b"[1-3]";
     let res = range(CompleteByteSlice(hostlist));
