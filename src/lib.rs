@@ -161,24 +161,17 @@ fn simple_hostrange() {
 }
 
 #[test]
-fn simple_hnrangepair() {
+fn hnrangepair_simple() {
     let hostlist = b"foo[1-3]";
     let res = hnrangepair(CompleteByteSlice(hostlist));
     let out = match res {
-        Ok((_, o)) => str::from_utf8(&o.0.unwrap()).unwrap(),
+        Ok((_, o)) => o,
         _ => { println!("{:?}", res);
                panic!();
         }
     };
-    assert_eq!(out, "foo");
-
-    let out = match res {
-        Ok((_, o)) => str::from_utf8(&o.1.unwrap()).unwrap(),
-        _ => { println!("{:?}", res);
-               panic!();
-        }
-    };
-    assert_eq!(out, "1-3");
+    assert_eq!(str::from_utf8(&out.0.unwrap()).unwrap(), "foo");
+    assert_eq!(str::from_utf8(&out.1.unwrap()).unwrap(), "1-3");
 }
 
 #[test]
