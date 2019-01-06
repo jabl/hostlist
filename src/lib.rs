@@ -52,15 +52,25 @@ named!(listexpr<CompleteByteSlice,
 );
 
 // A range (something enclosed with [])
-named!(range<CompleteByteSlice, CompleteByteSlice>, delimited!(char!('['), take_until!("]"), char!(']')));
+named!(range<CompleteByteSlice,
+       Vec<(CompleteByteSlice, Option<CompleteByteSlice>)> >,
+       delimited!(char!('['), listexpr, char!(']'))
+);
 
 // hostname-range pair
-named!(hnrangepair<CompleteByteSlice, (Option<CompleteByteSlice>, Option<CompleteByteSlice>) >, tuple!(
-    opt!(hostname_part), opt!(range)));
+named!(hnrangepair<CompleteByteSlice,
+       (Option<CompleteByteSlice>,
+        Option<Vec<(CompleteByteSlice, Option<CompleteByteSlice>)> >) >,
+       tuple!(
+           opt!(hostname_part), opt!(range))
+);
 
 // A complete hostlist, e.g. foo[1-3]
-named!(hostlist<CompleteByteSlice, Vec<(Option<CompleteByteSlice>, Option<CompleteByteSlice>)> >,
-       many1!(hnrangepair));
+named!(hostlist<CompleteByteSlice,
+       Vec<(Option<CompleteByteSlice>,
+       Option<Vec<(CompleteByteSlice, Option<CompleteByteSlice>)> >) >>,
+       many1!(hnrangepair)
+);
 
 // Convert a range in string format to a btreemap
 // In principle one could use an interval or segment tree, but here
@@ -86,9 +96,8 @@ pub fn expand(a_str: &str) -> Vec<String> {
 
     // New impl using Nom
     let p = hostlist(CompleteByteSlice(a_str.as_bytes()));
-    let res: Vec<(Option<CompleteByteSlice>, Option<CompleteByteSlice>)>;
-    match p {
-        Ok((_, o)) => res = o,
+    let res = match p {
+        Ok((_, o)) => o,
         _ => { println!("Invalid hostlist: {:?}", p);
                panic!();
         }
@@ -99,9 +108,9 @@ pub fn expand(a_str: &str) -> Vec<String> {
             None => "",
             Some(o) => str::from_utf8(&o).unwrap(),
         };
-        let range = range2tree(match e.1 {
+        let range = range2tree(match &e.1 {
             None => "",
-            Some(i) => str::from_utf8(&i).unwrap(),
+            Some(i) => str::from_utf8(&i[0].0).unwrap(),
         });
         res2.push((base, range));
     }
@@ -149,20 +158,24 @@ fn listexpr_2() {
 
 
 #[test]
-fn simple_hostrange() {
-    let hostlist = b"[1-3]";
+fn hostrange() {
+    let hostlist = b"[1,2,3-5]";
     let res = range(CompleteByteSlice(hostlist));
-    let mut out = "";
-    match res {
-        Ok((_, o)) => out = str::from_utf8(&o).unwrap(),
-        _ => println!("{:?}", res)
-    }
-    assert_eq!(out, "1-3");
+    let out = match res {
+        Ok((_, o)) => o,
+        _ => { println!("{:?}", res);
+               panic!();
+        }
+    };
+    assert_eq!(str::from_utf8(&out[0].0).unwrap(), "1");
+    assert_eq!(str::from_utf8(&out[1].0).unwrap(), "2");
+    assert_eq!(str::from_utf8(&out[2].0).unwrap(), "3");
+    assert_eq!(str::from_utf8(&out[2].1.unwrap()).unwrap(), "5");
 }
 
 #[test]
-fn hnrangepair_simple() {
-    let hostlist = b"foo[1-3]";
+fn hnrangepair_1() {
+    let hostlist = b"foo[1,2,3-5]";
     let res = hnrangepair(CompleteByteSlice(hostlist));
     let out = match res {
         Ok((_, o)) => o,
@@ -171,7 +184,11 @@ fn hnrangepair_simple() {
         }
     };
     assert_eq!(str::from_utf8(&out.0.unwrap()).unwrap(), "foo");
-    assert_eq!(str::from_utf8(&out.1.unwrap()).unwrap(), "1-3");
+    let r = &out.1.unwrap();
+    assert_eq!(str::from_utf8(&r[0].0).unwrap(), "1");
+    assert_eq!(str::from_utf8(&r[1].0).unwrap(), "2");
+    assert_eq!(str::from_utf8(&r[2].0).unwrap(), "3");
+    assert_eq!(str::from_utf8(&r[2].1.unwrap()).unwrap(), "5");
 }
 
 #[test]
@@ -189,19 +206,23 @@ fn hnrangepair_hostonly() {
 
 #[test]
 fn hnrangepair_rangeonly() {
-    let hostlist = b"[1-3]";
+    let hostlist = b"[1,2,3-5]";
     let res = hnrangepair(CompleteByteSlice(hostlist));
     let out = match res {
-        Ok((_, o)) => str::from_utf8(&o.1.unwrap()).unwrap(),
+        Ok((_, o)) => o,
         _ => { println!("{:?}", res);
                panic!();
         }
     };
-    assert_eq!(out, "1-3");
+    let r = &out.1.unwrap();
+    assert_eq!(str::from_utf8(&r[0].0).unwrap(), "1");
+    assert_eq!(str::from_utf8(&r[1].0).unwrap(), "2");
+    assert_eq!(str::from_utf8(&r[2].0).unwrap(), "3");
+    assert_eq!(str::from_utf8(&r[2].1.unwrap()).unwrap(), "5");
 }
 
 #[test]
-fn simple_hostlist() {
+fn hostlist_1() {
     let myhl = b"foo[1-3]";
     let res = hostlist(CompleteByteSlice(myhl));
     let out = match res {
@@ -224,6 +245,7 @@ mod tests {
 
     #[test]
     fn test_expand() {
-        assert_eq!(expand("foo[1-3]"), vec!["foo1", "foo2", "foo3"]);
+        //assert_eq!(expand("foo[1-3]"), vec!["foo1", "foo2", "foo3"]);
+        assert_eq!(expand("foo[1-3]"), vec!["food"]);
     }
 }
