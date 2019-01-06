@@ -2,6 +2,7 @@
 name = "hostlist"
 version = "0.1.0"
 authors = ["Janne Blomqvist <blomqvist.janne@gmail.com>"]
+edition = "2018"
 
 [dependencies]
-nom = "^1.2.4"
+nom = { version = "^4.1", features = ["verbose-errors"] }
