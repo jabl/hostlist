@@ -85,16 +85,6 @@ fn range2tree(_a_str: &str) -> BTreeMap<i32, i32> {
 
 // Expand a hostlist to a vector of hostnames
 pub fn expand(a_str: &str) -> Vec<String> {
-
-
-    // Is this a hostlist at all?
-    /*let baseend = match  hostlist.find('[') {
-        None => return vec![hostlist.to_string()],
-        Some(i) => i,
-    };
-    vec![hostlist[0..baseend].to_string()]*/
-
-    // New impl using Nom
     let p = hostlist(CompleteByteSlice(a_str.as_bytes()));
     let res = match p {
         Ok((_, o)) => o,
