@@ -84,7 +84,7 @@ fn range2tree(_a_str: &str) -> BTreeMap<i32, i32> {
 }
 
 // Expand a hostlist to a vector of hostnames
-pub fn expand(a_str: &str) -> Vec<String> {
+pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
     let p = hostlist(CompleteByteSlice(a_str.as_bytes()));
     let res = match p {
         Ok((_, o)) => o,
@@ -105,7 +105,7 @@ pub fn expand(a_str: &str) -> Vec<String> {
         res2.push((base, range));
     }
     println!("res2: {:?}", res2);
-    vec!["food".to_string()]
+    Ok(vec!["food".to_string()])
 }
 
 
@@ -241,6 +241,6 @@ mod tests {
     #[test]
     fn test_expand() {
         //assert_eq!(expand("foo[1-3]"), vec!["foo1", "foo2", "foo3"]);
-        assert_eq!(expand("foo[1-3]"), vec!["food"]);
+        assert_eq!(expand("foo[1-3]").unwrap(), vec!["food"]);
     }
 }
