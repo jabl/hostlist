@@ -20,22 +20,9 @@
 use std::str;
 use nom::*;
 use nom::types::CompleteByteSlice;
-use std::collections::BTreeMap;
 
-/* Maybe this for storing parsed listexpr's?
-struct Range {
-    low: i32,
-    high: i32
-}
-
-enum HostListIndex {
-    Single(i32),
-    Range(Range)
-}
- */
 
 // A name component part of a hostlist, before the hostlist syntax begins
-//named!(hostname_part, take_until!("["));
 named!(hostname_part<CompleteByteSlice, CompleteByteSlice>, take_while!(|ch| ch != b'['));
 
 // A hostlist list expressions, the stuff within []. E.g. 1,2,5-6,9
@@ -72,40 +59,41 @@ named!(hostlist<CompleteByteSlice,
        many1!(hnrangepair)
 );
 
-// Convert a range in string format to a btreemap
-// In principle one could use an interval or segment tree, but here
-// we're just merging overlapping intervals instead of keeping track
-// of them. So a plain btreemap is fine. The key is the lower end of
-// the range, the value is the upper end.
-fn range2tree(_a_str: &str) -> BTreeMap<i32, i32> {
-    let mut range = BTreeMap::new();
-    range.insert(1, 3);
-    range
-}
 
 // Expand a hostlist to a vector of hostnames
 pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
     let p = hostlist(CompleteByteSlice(a_str.as_bytes()));
-    let res = match p {
+    let parsed = match p {
         Ok((_, o)) => o,
-        _ => { println!("Invalid hostlist: {:?}", p);
-               panic!();
-        }
+        _ => return Err("Invalid hostlist")
     };
-    let mut res2: Vec<(&str, BTreeMap<i32, i32>)> = Vec::new();
-    for e in &res {
+    let mut res: Vec<String> = Vec::new();
+    for e in &parsed {
         let base = match e.0 {
             None => "",
             Some(o) => str::from_utf8(&o).unwrap(),
         };
-        let range = range2tree(match &e.1 {
-            None => "",
-            Some(i) => str::from_utf8(&i[0].0).unwrap(),
-        });
-        res2.push((base, range));
+        let r = match &e.1 {
+            Some(o) => o,
+            None => return Err("Invalid hostrange"),
+        };
+        for r2 in r {
+            let idx = str::from_utf8(&r2.0).unwrap();
+            res.push(format!("{}{}", base, idx));
+            match r2.1 {
+                // An upper part of a range
+                Some(u) => {
+                    let idxu: i32 = str::from_utf8(&u).unwrap().parse().unwrap();
+                    let idxl: i32 = idx.parse().unwrap();
+                    for i in idxl .. idxu {
+                        res.push(format!("{}{}", base, i + 1));
+                    }
+                }
+                None => continue
+            }
+        }
     }
-    println!("res2: {:?}", res2);
-    Ok(vec!["food".to_string()])
+    Ok(res)
 }
 
 
@@ -240,7 +228,9 @@ mod tests {
 
     #[test]
     fn test_expand() {
-        //assert_eq!(expand("foo[1-3]"), vec!["foo1", "foo2", "foo3"]);
-        assert_eq!(expand("foo[1-3]").unwrap(), vec!["food"]);
+        assert_eq!(expand("foo[1,2,3]").unwrap(),
+                   vec!["foo1", "foo2", "foo3"]);
+        assert_eq!(expand("foo[1-3]").unwrap(),
+                   vec!["foo1", "foo2", "foo3"]);
     }
 }
