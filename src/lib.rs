@@ -223,15 +223,20 @@ fn hnrangepair_rangeonly() {
 
 #[test]
 fn hostlist_1() {
-    let myhl = b"foo[1-3]";
+    let myhl = b"foo[1,2,3-5]";
     let res = hostlist(CompleteByteSlice(myhl));
     let out = match res {
-        Ok((_, o)) => str::from_utf8(&o[0].0.unwrap()).unwrap(),
+        Ok((_, o)) => o,
         _ => { println!("{:?}", res);
                panic!();
         }
     };
-    assert_eq!(out, "foo");
+    assert_eq!(str::from_utf8(&out[0].0.unwrap()).unwrap(), "foo");
+    let r = &out[0].1.as_ref().unwrap();
+    assert_eq!(str::from_utf8(&r[0].0).unwrap(), "1");
+    assert_eq!(str::from_utf8(&r[1].0).unwrap(), "2");
+    assert_eq!(str::from_utf8(&r[2].0).unwrap(), "3");
+    assert_eq!(str::from_utf8(&r[2].1.unwrap()).unwrap(), "5");
 }
 
 // Tests of public functions
