@@ -15,3 +15,21 @@ Some other tools and applications supporting hostlists are
 - [pdsh](https://github.com/grondo/pdsh)
 - [genders](https://github.com/chaos/genders)
 - [GNU FreeIPMI](https://www.gnu.org/software/freeipmi/)
+
+
+## Usage
+
+The library provides a single public function, with the signature
+
+    pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str>
+
+This function will expand a hostlist into a list of
+hostnames. E.g. "foo[1-3]" will result in a vector ["foo1", "foo2",
+"foo3"].
+
+## Command-line utility
+
+TODO, not yet implemented!
+
+A command-line utility will allow accessing the functionality of the
+library from a shell.
