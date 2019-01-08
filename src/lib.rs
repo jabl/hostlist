@@ -72,7 +72,8 @@ named!(hostlist<CompleteByteSlice,
 /// # Examples
 ///
 /// ```
-/// assert_eq!(expand("foo[1-3]").unwrap(),
+/// extern crate hostlist;
+/// assert_eq!(hostlist::expand("foo[1-3]").unwrap(),
 ///            vec!["foo1", "foo2", "foo3"]);
 /// ```
 pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {

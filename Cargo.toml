@@ -1,6 +1,6 @@
 [package]
 name = "hostlist"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Janne Blomqvist <blomqvist.janne@gmail.com>"]
 edition = "2018"
 description = "Hostlist library for Rust"
