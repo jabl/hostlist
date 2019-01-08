@@ -67,7 +67,14 @@ named!(hostlist<CompleteByteSlice,
 );
 
 
-// Expand a hostlist to a vector of hostnames
+/// Expand a hostlist to a vector of hostnames
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(expand("foo[1-3]").unwrap(),
+///            vec!["foo1", "foo2", "foo3"]);
+/// ```
 pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
     let p = hostlist(CompleteByteSlice(a_str.as_bytes()));
     let parsed = match p {
