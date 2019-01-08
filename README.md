@@ -29,7 +29,5 @@ hostnames. E.g. "foo[1-3]" will result in a vector ["foo1", "foo2",
 
 ## Command-line utility
 
-TODO, not yet implemented!
-
-A command-line utility will allow accessing the functionality of the
-library from a shell.
+A so far VERY rudimentary CLI app called `hostlist` is included,
+allowing to use the `expand()` function from the command line.

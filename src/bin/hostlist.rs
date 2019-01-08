@@ -29,5 +29,20 @@ use hostlist;
 
 fn main () {
     let args: Vec<String> = env::args().collect();
-    println!("{:#?}", hostlist::expand(&args[1]));
+    let hl = hostlist::expand(&args[1]);
+    match hl {
+        Ok(o) => {
+            let mut i = true;
+            for e in o {
+                if i {
+                    print!("{}", e);
+                    i = false;
+                } else {
+                    print!(",{}", e);
+                }
+            }
+            println!("");
+        }
+        Err(e) => eprintln!("{}", e)
+    }
 }
