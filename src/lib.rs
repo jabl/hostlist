@@ -88,7 +88,10 @@ pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
         };
         let r = match &e.1 {
             Some(o) => o,
-            None => return Err("Invalid hostrange"),
+            None => {
+                res.push(base.to_string());
+                continue;
+            }
         };
         for r2 in r {
             let idx = str::from_utf8(&r2.0).unwrap();
@@ -245,5 +248,6 @@ mod tests {
     fn test_expand() {
         assert_eq!(expand("foo[1,2,3]").unwrap(), vec!["foo1", "foo2", "foo3"]);
         assert_eq!(expand("foo[1-3]").unwrap(), vec!["foo1", "foo2", "foo3"]);
+        assert_eq!(expand("foo").unwrap(), vec!["foo"]);
     }
 }
