@@ -34,6 +34,7 @@ fn main() {
     let matches = App::new(crate_name!())
         .version(crate_version!())
         .about(crate_description!())
+        .author(crate_authors!())
         .arg(
             Arg::with_name("expand")
                 .short("e")
