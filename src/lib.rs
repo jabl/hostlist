@@ -24,10 +24,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  */
 
-use std::str;
-use nom::*;
 use nom::types::CompleteByteSlice;
-
+use nom::*;
+use std::str;
 
 // A name component part of a hostlist, before the hostlist syntax begins
 named!(hostname_part<CompleteByteSlice, CompleteByteSlice>, take_while!(|ch| ch != b'['));
@@ -66,7 +65,6 @@ named!(hostlist<CompleteByteSlice,
        many1!(hnrangepair)
 );
 
-
 /// Expand a hostlist to a vector of hostnames
 ///
 /// # Examples
@@ -80,7 +78,7 @@ pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
     let p = hostlist(CompleteByteSlice(a_str.as_bytes()));
     let parsed = match p {
         Ok((_, o)) => o,
-        _ => return Err("Invalid hostlist")
+        _ => return Err("Invalid hostlist"),
     };
     let mut res: Vec<String> = Vec::new();
     for e in &parsed {
@@ -100,17 +98,16 @@ pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
                 Some(u) => {
                     let idxu: i32 = str::from_utf8(&u).unwrap().parse().unwrap();
                     let idxl: i32 = idx.parse().unwrap();
-                    for i in idxl .. idxu {
+                    for i in idxl..idxu {
                         res.push(format!("{}{}", base, i + 1));
                     }
                 }
-                None => continue
+                None => continue,
             }
         }
     }
     Ok(res)
 }
-
 
 // Tests of private functions
 #[test]
@@ -119,7 +116,7 @@ fn check_base() {
     let res = hostname_part(CompleteByteSlice(hostlist));
     let out = match res {
         Ok((_, o)) => str::from_utf8(&o).unwrap(),
-        _ => panic!()
+        _ => panic!(),
     };
     assert_eq!(out, "foo");
 }
@@ -130,7 +127,7 @@ fn listexpr_1() {
     let res = listexpr(CompleteByteSlice(le));
     let out = match res {
         Ok((_, o)) => str::from_utf8(&o[0].0).unwrap(),
-        _ => panic!()
+        _ => panic!(),
     };
     assert_eq!(out, "1");
 }
@@ -141,7 +138,7 @@ fn listexpr_2() {
     let res = listexpr(CompleteByteSlice(le));
     let out = match res {
         Ok((_, o)) => o,
-        _ => panic!()
+        _ => panic!(),
     };
     assert_eq!(str::from_utf8(&out[0].0).unwrap(), "1");
     assert_eq!(str::from_utf8(&out[1].0).unwrap(), "2");
@@ -149,15 +146,15 @@ fn listexpr_2() {
     assert_eq!(str::from_utf8(&out[2].1.unwrap()).unwrap(), "5");
 }
 
-
 #[test]
 fn hostrange() {
     let hostlist = b"[1,2,3-5]";
     let res = range(CompleteByteSlice(hostlist));
     let out = match res {
         Ok((_, o)) => o,
-        _ => { println!("{:?}", res);
-               panic!();
+        _ => {
+            println!("{:?}", res);
+            panic!();
         }
     };
     assert_eq!(str::from_utf8(&out[0].0).unwrap(), "1");
@@ -172,8 +169,9 @@ fn hnrangepair_1() {
     let res = hnrangepair(CompleteByteSlice(hostlist));
     let out = match res {
         Ok((_, o)) => o,
-        _ => { println!("{:?}", res);
-               panic!();
+        _ => {
+            println!("{:?}", res);
+            panic!();
         }
     };
     assert_eq!(str::from_utf8(&out.0.unwrap()).unwrap(), "foo");
@@ -190,8 +188,9 @@ fn hnrangepair_hostonly() {
     let res = hnrangepair(CompleteByteSlice(hostlist));
     let out = match res {
         Ok((_, o)) => str::from_utf8(&o.0.unwrap()).unwrap(),
-        _ => { println!("{:?}", res);
-               panic!();
+        _ => {
+            println!("{:?}", res);
+            panic!();
         }
     };
     assert_eq!(out, "foo");
@@ -203,8 +202,9 @@ fn hnrangepair_rangeonly() {
     let res = hnrangepair(CompleteByteSlice(hostlist));
     let out = match res {
         Ok((_, o)) => o,
-        _ => { println!("{:?}", res);
-               panic!();
+        _ => {
+            println!("{:?}", res);
+            panic!();
         }
     };
     let r = &out.1.unwrap();
@@ -220,8 +220,9 @@ fn hostlist_1() {
     let res = hostlist(CompleteByteSlice(myhl));
     let out = match res {
         Ok((_, o)) => o,
-        _ => { println!("{:?}", res);
-               panic!();
+        _ => {
+            println!("{:?}", res);
+            panic!();
         }
     };
     assert_eq!(str::from_utf8(&out[0].0.unwrap()).unwrap(), "foo");
@@ -236,16 +237,13 @@ fn hostlist_1() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
-    fn it_works() {
-    }
+    fn it_works() {}
 
     #[test]
     fn test_expand() {
-        assert_eq!(expand("foo[1,2,3]").unwrap(),
-                   vec!["foo1", "foo2", "foo3"]);
-        assert_eq!(expand("foo[1-3]").unwrap(),
-                   vec!["foo1", "foo2", "foo3"]);
+        assert_eq!(expand("foo[1,2,3]").unwrap(), vec!["foo1", "foo2", "foo3"]);
+        assert_eq!(expand("foo[1-3]").unwrap(), vec!["foo1", "foo2", "foo3"]);
     }
 }

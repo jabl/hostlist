@@ -24,10 +24,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  */
 
-use std::env;
 use hostlist;
+use std::env;
 
-fn main () {
+fn main() {
     let args: Vec<String> = env::args().collect();
     let hl = hostlist::expand(&args[1]);
     match hl {
@@ -43,6 +43,6 @@ fn main () {
             }
             println!("");
         }
-        Err(e) => eprintln!("{}", e)
+        Err(e) => eprintln!("{}", e),
     }
 }
