@@ -24,12 +24,46 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  */
 
+#[macro_use]
+extern crate clap;
+
+use clap::{App, Arg};
 use hostlist;
-use std::env;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let hl = hostlist::expand(&args[1]);
+    let matches = App::new(crate_name!())
+        .version(crate_version!())
+        .about(crate_description!())
+        .arg(
+            Arg::with_name("expand")
+                .short("e")
+                .long("expand")
+                .help("Expand the hostlist given (default)")
+                .takes_value(false),
+        )
+        .arg(
+            Arg::with_name("contract")
+                .short("c")
+                .long("contract")
+                .help("Contract the list of hosts given")
+                .takes_value(false)
+                .conflicts_with("expand"),
+        )
+        .arg(
+            Arg::with_name("HOSTLIST")
+                .help("The hostlist or list of hosts to expand/contract")
+                .required(true)
+                .index(1),
+        )
+        .get_matches();
+
+    if matches.is_present("contract") {
+        eprintln!("--contract is unimplemented, sorry!");
+        return;
+    }
+
+    let hl = matches.value_of("HOSTLIST").unwrap();
+    let hl = hostlist::expand(hl);
     match hl {
         Ok(o) => {
             let mut i = true;
