@@ -250,4 +250,59 @@ mod tests {
         assert_eq!(expand("foo[1-3]").unwrap(), vec!["foo1", "foo2", "foo3"]);
         assert_eq!(expand("foo").unwrap(), vec!["foo"]);
     }
+
+    #[test]
+    fn test_full_name_with_comma_works() {
+        assert_eq!(
+            expand("hostname1.foo.com,hostname2.foo.com").unwrap(),
+            vec!["hostname1.foo.com", "hostname2.foo.com"]
+        );
+    }
+
+    #[test]
+    fn test_trailing_parts() {
+        assert_eq!(
+            expand("hostname1.foo.com").unwrap(),
+            vec!["hostname1.foo.com"]
+        );
+    }
+
+    #[test]
+    fn test_single_host_expansion() {
+        assert_eq!(
+            expand("hostname[6].foo.com").unwrap(),
+            vec!["hostname6.foo.com"]
+        )
+    }
+
+    #[test]
+    fn test_prefix_expansion() {
+        assert_eq!(
+            expand("hostname[009-011]").unwrap(),
+            vec!["hostname009", "hostname010", "hostname011"]
+        );
+    }
+
+    #[test]
+    fn test_reverse_order() {
+        assert_eq!(
+            expand("hostname[7-5]").unwrap(),
+            vec!["hostname5", "hostname6", "hostname7"],
+        );
+    }
+
+    #[test]
+    fn test_single_item_two_ranges() {
+        assert_eq!(
+            expand("hostname[6,7]-[9-11].foo.com").unwrap(),
+            vec![
+                "hostname6-9.foo.com",
+                "hostname6-10.foo.com",
+                "hostname6-11.foo.com",
+                "hostname7-9.foo.com",
+                "hostname7-10.foo.com",
+                "hostname7-11.foo.com"
+            ]
+        );
+    }
 }
