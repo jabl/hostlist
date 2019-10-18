@@ -24,16 +24,32 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  */
 
-use nom::types::CompleteByteSlice;
 use nom::*;
+use nom::character::is_digit;
+use nom::bytes::complete::take_while;
+use nom::bytes::complete::tag;
+use nom::sequence::delimited;
+use nom::sequence::preceded;
+use nom::sequence::tuple;
+use nom::combinator::opt;
+use nom::multi::many1;
+use nom::multi::separated_nonempty_list;
 use std::str;
 
 // A name component part of a hostlist, before the hostlist syntax begins
-named!(hostname_part<CompleteByteSlice, CompleteByteSlice>, take_while!(|ch| ch != b'['));
+//named!(hostname_part<&str, &str>, take_while!(|ch| ch != '['));
+fn hostname_part(input: &[u8]) -> IResult<&[u8], &[u8]>
+{
+    let hpart = take_while(|ch| ch != b'[');
+    let foo = hpart(input)?;
+    Ok(foo)
+}
+
 
 // A hostlist list expressions, the stuff within []. E.g. 1,2,5-6,9
-named!(listexpr<CompleteByteSlice,
-       Vec<(CompleteByteSlice, Option<CompleteByteSlice>)> >,
+/*
+named!(listexpr<&str,
+       Vec<(&str, Option<&str>)> >,
        separated_nonempty_list!(
            char!(','),
            tuple!(take_while!(is_digit),
@@ -43,27 +59,58 @@ named!(listexpr<CompleteByteSlice,
            )
        )
 );
+ */
+fn listexpr(input: &[u8]) -> IResult<&[u8], Vec<(&[u8], Option<&[u8]>)> >
+{
+    let digits = take_while(is_digit);
+    let range = tuple((&digits, opt(preceded(tag("-"), &digits))));
+    let snl = separated_nonempty_list(tag(","), range);
+    let p = snl(input)?;
+    Ok(p)
+}
 
 // A range (something enclosed with [])
-named!(range<CompleteByteSlice,
-       Vec<(CompleteByteSlice, Option<CompleteByteSlice>)> >,
+/*named!(range<&str,
+       Vec<(&str, Option<&str>)> >,
        delimited!(char!('['), listexpr, char!(']'))
-);
+); */
+fn range(input: &[u8]) -> IResult<&[u8], Vec<(&[u8], Option<&[u8]>)> >
+{
+    let r = delimited(tag("["), listexpr, tag("]"));
+    let p = r(input)?;
+    Ok(p)
+}
 
 // hostname-range pair
-named!(hnrangepair<CompleteByteSlice,
-       (Option<CompleteByteSlice>,
-        Option<Vec<(CompleteByteSlice, Option<CompleteByteSlice>)> >) >,
+/*named!(hnrangepair<&str,
+       (Option<&str>,
+        Option<Vec<(&str, Option<&str>)> >) >,
        tuple!(
            opt!(hostname_part), opt!(range))
-);
+);*/
+fn hnrangepair(input: &[u8]) -> IResult<&[u8],
+                                        (Option<&[u8]>,
+                                         Option<Vec<(&[u8], Option<&[u8]>)>>)>
+{
+    let t = tuple((opt(hostname_part), opt(range)));
+    let p = t(input)?;
+    Ok(p)
+}
 
 // A complete hostlist, e.g. foo[1-3]
-named!(hostlist<CompleteByteSlice,
-       Vec<(Option<CompleteByteSlice>,
-       Option<Vec<(CompleteByteSlice, Option<CompleteByteSlice>)> >) >>,
+/*named!(hostlist<&str,
+       Vec<(Option<&str>,
+       Option<Vec<(&str, Option<&str>)> >) >>,
        many1!(hnrangepair)
-);
+);*/
+fn hostlist(input: &[u8]) -> IResult<&[u8],
+                                     Vec<(Option<&[u8]>,
+                                          Option<Vec<(&[u8], Option<&[u8]>)>>)>>
+{
+    let m = many1(hnrangepair);
+    let p = m(input)?;
+    Ok(p)
+}
 
 /// Expand a hostlist to a vector of hostnames
 ///
@@ -75,7 +122,7 @@ named!(hostlist<CompleteByteSlice,
 ///            vec!["foo1", "foo2", "foo3"]);
 /// ```
 pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
-    let p = hostlist(CompleteByteSlice(a_str.as_bytes()));
+    let p = hostlist(a_str.as_bytes());
     let parsed = match p {
         Ok((_, o)) => o,
         _ => return Err("Invalid hostlist"),
@@ -116,7 +163,7 @@ pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
 #[test]
 fn check_base() {
     let hostlist = b"foo[1-3]";
-    let res = hostname_part(CompleteByteSlice(hostlist));
+    let res = hostname_part(hostlist);
     let out = match res {
         Ok((_, o)) => str::from_utf8(&o).unwrap(),
         _ => panic!(),
@@ -127,7 +174,7 @@ fn check_base() {
 #[test]
 fn listexpr_1() {
     let le = b"1";
-    let res = listexpr(CompleteByteSlice(le));
+    let res = listexpr(le);
     let out = match res {
         Ok((_, o)) => str::from_utf8(&o[0].0).unwrap(),
         _ => panic!(),
@@ -138,7 +185,7 @@ fn listexpr_1() {
 #[test]
 fn listexpr_2() {
     let le = b"1,2,3-5";
-    let res = listexpr(CompleteByteSlice(le));
+    let res = listexpr(le);
     let out = match res {
         Ok((_, o)) => o,
         _ => panic!(),
@@ -152,7 +199,7 @@ fn listexpr_2() {
 #[test]
 fn hostrange() {
     let hostlist = b"[1,2,3-5]";
-    let res = range(CompleteByteSlice(hostlist));
+    let res = range(hostlist);
     let out = match res {
         Ok((_, o)) => o,
         _ => {
@@ -169,7 +216,7 @@ fn hostrange() {
 #[test]
 fn hnrangepair_1() {
     let hostlist = b"foo[1,2,3-5]";
-    let res = hnrangepair(CompleteByteSlice(hostlist));
+    let res = hnrangepair(hostlist);
     let out = match res {
         Ok((_, o)) => o,
         _ => {
@@ -188,7 +235,7 @@ fn hnrangepair_1() {
 #[test]
 fn hnrangepair_hostonly() {
     let hostlist = b"foo";
-    let res = hnrangepair(CompleteByteSlice(hostlist));
+    let res = hnrangepair(hostlist);
     let out = match res {
         Ok((_, o)) => str::from_utf8(&o.0.unwrap()).unwrap(),
         _ => {
@@ -202,7 +249,7 @@ fn hnrangepair_hostonly() {
 #[test]
 fn hnrangepair_rangeonly() {
     let hostlist = b"[1,2,3-5]";
-    let res = hnrangepair(CompleteByteSlice(hostlist));
+    let res = hnrangepair(hostlist);
     let out = match res {
         Ok((_, o)) => o,
         _ => {
@@ -220,7 +267,7 @@ fn hnrangepair_rangeonly() {
 #[test]
 fn hostlist_1() {
     let myhl = b"foo[1,2,3-5]";
-    let res = hostlist(CompleteByteSlice(myhl));
+    let res = hostlist(myhl);
     let out = match res {
         Ok((_, o)) => o,
         _ => {

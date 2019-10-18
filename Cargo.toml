@@ -13,5 +13,5 @@ readme = "README.md"
 travis-ci = { repository = "jabl/hostlist" }
 
 [dependencies]
-nom = { version = "^4.1", features = ["verbose-errors"] }
+nom = { version = "^5.0" }
 clap = "2"
