@@ -41,8 +41,7 @@ use std::str;
 fn hostname_part(input: &[u8]) -> IResult<&[u8], &[u8]>
 {
     let hpart = take_while(|ch| ch != b'[');
-    let foo = hpart(input)?;
-    Ok(foo)
+    hpart(input)
 }
 
 
@@ -65,8 +64,7 @@ fn listexpr(input: &[u8]) -> IResult<&[u8], Vec<(&[u8], Option<&[u8]>)> >
     let digits = take_while(is_digit);
     let range = tuple((&digits, opt(preceded(tag("-"), &digits))));
     let snl = separated_nonempty_list(tag(","), range);
-    let p = snl(input)?;
-    Ok(p)
+    snl(input)
 }
 
 // A range (something enclosed with [])
@@ -77,8 +75,7 @@ fn listexpr(input: &[u8]) -> IResult<&[u8], Vec<(&[u8], Option<&[u8]>)> >
 fn range(input: &[u8]) -> IResult<&[u8], Vec<(&[u8], Option<&[u8]>)> >
 {
     let r = delimited(tag("["), listexpr, tag("]"));
-    let p = r(input)?;
-    Ok(p)
+    r(input)
 }
 
 // hostname-range pair
@@ -93,8 +90,7 @@ fn hnrangepair(input: &[u8]) -> IResult<&[u8],
                                          Option<Vec<(&[u8], Option<&[u8]>)>>)>
 {
     let t = tuple((opt(hostname_part), opt(range)));
-    let p = t(input)?;
-    Ok(p)
+    t(input)
 }
 
 // A complete hostlist, e.g. foo[1-3]
@@ -108,8 +104,7 @@ fn hostlist(input: &[u8]) -> IResult<&[u8],
                                           Option<Vec<(&[u8], Option<&[u8]>)>>)>>
 {
     let m = many1(hnrangepair);
-    let p = m(input)?;
-    Ok(p)
+    m(input)
 }
 
 /// Expand a hostlist to a vector of hostnames
