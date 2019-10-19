@@ -44,6 +44,22 @@ fn hostname_part(input: &[u8]) -> IResult<&[u8], &[u8]>
     hpart(input)
 }
 
+// take_digits taken from https://github.com/badboy/iso8601 (MIT
+// licensed)
+fn take_digits(i: &[u8]) -> IResult<&[u8], u32> {
+    let (i, digits) = take_while(is_digit)(i)?;
+
+    if digits.is_empty() {
+        return Err(nom::Err::Error((i, nom::error::ErrorKind::Eof)));
+    }
+
+    let s = str::from_utf8(digits).expect("Invalid data, expected UTF-8 string");
+    let res = s
+        .parse()
+        .expect("Invalid string, expected ASCII representation of a number");
+
+    Ok((i, res))
+}
 
 // A hostlist list expressions, the stuff within []. E.g. 1,2,5-6,9
 /*
@@ -59,9 +75,9 @@ named!(listexpr<&str,
        )
 );
  */
-fn listexpr(input: &[u8]) -> IResult<&[u8], Vec<(&[u8], Option<&[u8]>)> >
+fn listexpr(input: &[u8]) -> IResult<&[u8], Vec<(u32, Option<u32>)> >
 {
-    let digits = take_while(is_digit);
+    let digits = take_digits;
     let range = tuple((&digits, opt(preceded(tag("-"), &digits))));
     let snl = separated_nonempty_list(tag(","), range);
     snl(input)
@@ -72,7 +88,7 @@ fn listexpr(input: &[u8]) -> IResult<&[u8], Vec<(&[u8], Option<&[u8]>)> >
        Vec<(&str, Option<&str>)> >,
        delimited!(char!('['), listexpr, char!(']'))
 ); */
-fn range(input: &[u8]) -> IResult<&[u8], Vec<(&[u8], Option<&[u8]>)> >
+fn range(input: &[u8]) -> IResult<&[u8], Vec<(u32, Option<u32>)> >
 {
     let r = delimited(tag("["), listexpr, tag("]"));
     r(input)
@@ -87,7 +103,7 @@ fn range(input: &[u8]) -> IResult<&[u8], Vec<(&[u8], Option<&[u8]>)> >
 );*/
 fn hnrangepair(input: &[u8]) -> IResult<&[u8],
                                         (Option<&[u8]>,
-                                         Option<Vec<(&[u8], Option<&[u8]>)>>)>
+                                         Option<Vec<(u32, Option<u32>)>>)>
 {
     let t = tuple((opt(hostname_part), opt(range)));
     t(input)
@@ -101,7 +117,7 @@ fn hnrangepair(input: &[u8]) -> IResult<&[u8],
 );*/
 fn hostlist(input: &[u8]) -> IResult<&[u8],
                                      Vec<(Option<&[u8]>,
-                                          Option<Vec<(&[u8], Option<&[u8]>)>>)>>
+                                          Option<Vec<(u32, Option<u32>)>>)>>
 {
     let m = many1(hnrangepair);
     m(input)
@@ -136,14 +152,13 @@ pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
             }
         };
         for r2 in r {
-            let idx = str::from_utf8(&r2.0).unwrap();
+            let idx = r2.0;
             res.push(format!("{}{}", base, idx));
             match r2.1 {
                 // An upper part of a range
                 Some(u) => {
-                    let idxu: i32 = str::from_utf8(&u).unwrap().parse().unwrap();
-                    let idxl: i32 = idx.parse().unwrap();
-                    for i in idxl..idxu {
+                    let idxu = u;
+                    for i in idx..idxu {
                         res.push(format!("{}{}", base, i + 1));
                     }
                 }
@@ -171,10 +186,10 @@ fn listexpr_1() {
     let le = b"1";
     let res = listexpr(le);
     let out = match res {
-        Ok((_, o)) => str::from_utf8(&o[0].0).unwrap(),
+        Ok((_, o)) => o[0].0,
         _ => panic!(),
     };
-    assert_eq!(out, "1");
+    assert_eq!(out, 1);
 }
 
 #[test]
@@ -185,10 +200,10 @@ fn listexpr_2() {
         Ok((_, o)) => o,
         _ => panic!(),
     };
-    assert_eq!(str::from_utf8(&out[0].0).unwrap(), "1");
-    assert_eq!(str::from_utf8(&out[1].0).unwrap(), "2");
-    assert_eq!(str::from_utf8(&out[2].0).unwrap(), "3");
-    assert_eq!(str::from_utf8(&out[2].1.unwrap()).unwrap(), "5");
+    assert_eq!(out[0].0, 1);
+    assert_eq!(out[1].0, 2);
+    assert_eq!(out[2].0, 3);
+    assert_eq!(out[2].1.unwrap(), 5);
 }
 
 #[test]
@@ -202,10 +217,10 @@ fn hostrange() {
             panic!();
         }
     };
-    assert_eq!(str::from_utf8(&out[0].0).unwrap(), "1");
-    assert_eq!(str::from_utf8(&out[1].0).unwrap(), "2");
-    assert_eq!(str::from_utf8(&out[2].0).unwrap(), "3");
-    assert_eq!(str::from_utf8(&out[2].1.unwrap()).unwrap(), "5");
+    assert_eq!(out[0].0, 1);
+    assert_eq!(out[1].0, 2);
+    assert_eq!(out[2].0, 3);
+    assert_eq!(out[2].1.unwrap(), 5);
 }
 
 #[test]
@@ -221,10 +236,10 @@ fn hnrangepair_1() {
     };
     assert_eq!(str::from_utf8(&out.0.unwrap()).unwrap(), "foo");
     let r = &out.1.unwrap();
-    assert_eq!(str::from_utf8(&r[0].0).unwrap(), "1");
-    assert_eq!(str::from_utf8(&r[1].0).unwrap(), "2");
-    assert_eq!(str::from_utf8(&r[2].0).unwrap(), "3");
-    assert_eq!(str::from_utf8(&r[2].1.unwrap()).unwrap(), "5");
+    assert_eq!(r[0].0, 1);
+    assert_eq!(r[1].0, 2);
+    assert_eq!(r[2].0, 3);
+    assert_eq!(r[2].1.unwrap(), 5);
 }
 
 #[test]
@@ -253,10 +268,10 @@ fn hnrangepair_rangeonly() {
         }
     };
     let r = &out.1.unwrap();
-    assert_eq!(str::from_utf8(&r[0].0).unwrap(), "1");
-    assert_eq!(str::from_utf8(&r[1].0).unwrap(), "2");
-    assert_eq!(str::from_utf8(&r[2].0).unwrap(), "3");
-    assert_eq!(str::from_utf8(&r[2].1.unwrap()).unwrap(), "5");
+    assert_eq!(r[0].0, 1);
+    assert_eq!(r[1].0, 2);
+    assert_eq!(r[2].0, 3);
+    assert_eq!(r[2].1.unwrap(), 5);
 }
 
 #[test]
@@ -272,10 +287,10 @@ fn hostlist_1() {
     };
     assert_eq!(str::from_utf8(&out[0].0.unwrap()).unwrap(), "foo");
     let r = &out[0].1.as_ref().unwrap();
-    assert_eq!(str::from_utf8(&r[0].0).unwrap(), "1");
-    assert_eq!(str::from_utf8(&r[1].0).unwrap(), "2");
-    assert_eq!(str::from_utf8(&r[2].0).unwrap(), "3");
-    assert_eq!(str::from_utf8(&r[2].1.unwrap()).unwrap(), "5");
+    assert_eq!(r[0].0, 1);
+    assert_eq!(r[1].0, 2);
+    assert_eq!(r[2].0, 3);
+    assert_eq!(r[2].1.unwrap(), 5);
 }
 
 // Tests of public functions
