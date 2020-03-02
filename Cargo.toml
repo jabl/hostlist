@@ -9,9 +9,16 @@ homepage = "https://github.com/jabl/hostlist"
 repository = "https://github.com/jabl/hostlist"
 readme = "README.md"
 
+[features]
+default = ["clap"]
+
+[[bin]]
+name = "hostlist"
+required-features = ["clap"]
+
 [badges]
 travis-ci = { repository = "jabl/hostlist" }
 
 [dependencies]
 nom = { version = "^5.0" }
-clap = "2"
+clap = { version = "2", optional = true }
