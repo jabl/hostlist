@@ -31,3 +31,10 @@ hostnames. E.g. "foo[1-3]" will result in a vector ["foo1", "foo2",
 
 A so far VERY rudimentary CLI app called `hostlist` is included,
 allowing to use the `expand()` function from the command line.
+
+## Building only the library
+
+If one doesn't want the command line application, one can build the library only
+with
+
+`cargo build --no-default-features`
