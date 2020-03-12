@@ -36,12 +36,13 @@ use nom::combinator::opt;
 use nom::multi::many0;
 use nom::multi::separated_nonempty_list;
 use std::str;
+use std::collections::BTreeSet;
 
 // A name component part of a hostlist, before the hostlist syntax begins
 //named!(hostname_part<&str, &str>, take_while!(|ch| ch != '['));
 fn hostname_part(input: &[u8]) -> IResult<&[u8], &[u8]>
 {
-    let hpart = take_while1(|ch| ch != b'[');
+    let hpart = take_while1(|ch| (ch != b'[' && ch != b','));
     hpart(input)
 }
 
@@ -95,7 +96,7 @@ fn range(input: &[u8]) -> IResult<&[u8], Vec<(u32, Option<u32>)> >
     r(input)
 }
 
-// hostname-range pair
+// hostname-ranges pair, e.g. foo[N-M][NN-MM]
 /*named!(hnrangepair<&str,
        (Option<&str>,
         Option<Vec<(&str, Option<&str>)> >) >,
@@ -104,13 +105,13 @@ fn range(input: &[u8]) -> IResult<&[u8], Vec<(u32, Option<u32>)> >
 );*/
 fn hnrangepair(input: &[u8]) -> IResult<&[u8],
                                         (&[u8],
-                                         Option<Vec<(u32, Option<u32>)>>)>
+                                         Vec<Vec<(u32, Option<u32>)>>)>
 {
-    let t = pair(hostname_part, opt(range));
+    let t = pair(hostname_part, many0(range));
     t(input)
 }
 
-// A complete hostlist, e.g. foo[1-3]
+// A complete hostlist, e.g. foo[1-3]bar[4-5][5-6],baz[1-3]
 /*named!(hostlist<&str,
        Vec<(Option<&str>,
        Option<Vec<(&str, Option<&str>)> >) >>,
@@ -118,7 +119,7 @@ fn hnrangepair(input: &[u8]) -> IResult<&[u8],
 );*/
 fn hostlist(input: &[u8]) -> IResult<&[u8],
                                      Vec<Vec<(&[u8],
-                                          Option<Vec<(u32, Option<u32>)>>)>>>
+                                          Vec<Vec<(u32, Option<u32>)>>)>>>
 {
     let m = many0(hnrangepair);
     let snl = separated_nonempty_list(tag(","), m);
@@ -140,32 +141,47 @@ pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
         Ok((_, o)) => o,
         _ => return Err("Invalid hostlist"),
     };
-    let mut res: Vec<String> = Vec::new();
+    let mut allres = BTreeSet::new();
     for e in &parsed {
-        let base = str::from_utf8(&e[0].0).unwrap();
-        let r = match &e[0].1 {
-            Some(o) => o,
-            None => {
+        let mut res: Vec<String> = Vec::new();
+        for rangepair in e {
+            let base = str::from_utf8(&rangepair.0).unwrap();
+            if rangepair.1.len() == 0 {
                 res.push(base.to_string());
-                continue;
-            }
-        };
-        for r2 in r {
-            let idx = r2.0;
-            res.push(format!("{}{}", base, idx));
-            match r2.1 {
-                // An upper part of a range
-                Some(u) => {
-                    let idxu = u;
-                    for i in idx..idxu {
-                        res.push(format!("{}{}", base, i + 1));
+            };
+            for range in &rangepair.1 {
+                for r2 in range {
+                    let idx = r2.0;
+                    res.push(format!("{}{}", base, idx));
+                    match r2.1 {
+                        // An upper part of a range
+                        Some(u) => {
+                            let idxu = u;
+                            if idx <= idxu {
+                                for i in idx..idxu {
+                                    res.push(format!("{}{}", base, i + 1));
+                                }
+                            }
+                            else {
+                                for i in idxu..idx {
+                                    res.push(format!("{}{}", base, i));
+                                }
+                            }
+                        }
+                        None => continue,
                     }
                 }
-                None => continue,
             }
         }
+        for host in res {
+            allres.insert(host);
+        }
     }
-    Ok(res)
+    let mut allresvec: Vec<String> = Vec::new();
+    for ar in &allres {
+        allresvec.push(ar.to_string());
+    }
+    Ok(allresvec)
 }
 
 // Tests of private functions
@@ -250,7 +266,7 @@ fn hnrangepair_1() {
         }
     };
     assert_eq!(str::from_utf8(&out.0).unwrap(), "foo");
-    let r = &out.1.unwrap();
+    let r = &out.1[0];
     assert_eq!(r[0].0, 1);
     assert_eq!(r[1].0, 2);
     assert_eq!(r[2].0, 3);
@@ -303,7 +319,7 @@ fn hostlist_1() {
         }
     };
     assert_eq!(str::from_utf8(&out[0][0].0).unwrap(), "foo");
-    let r = &out[0][0].1.as_ref().unwrap();
+    let r = &out[0][0].1[0];
     assert_eq!(r[0].0, 1);
     assert_eq!(r[1].0, 2);
     assert_eq!(r[2].0, 3);
