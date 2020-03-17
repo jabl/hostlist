@@ -50,7 +50,6 @@ struct RangeList {
 }
 
 // A name component part of a hostlist, before the hostlist syntax begins
-//named!(hostname_part<&str, &str>, take_while!(|ch| ch != '['));
 fn hostname_part(input: &[u8]) -> IResult<&[u8], &[u8]>
 {
     let hpart = take_while1(|ch| (ch != b'[' && ch != b','));
@@ -85,19 +84,6 @@ fn take_digits(i: &[u8]) -> IResult<&[u8], DigitInfo> {
 }
 
 // A hostlist list expressions, the stuff within []. E.g. 1,2,5-6,9
-/*
-named!(listexpr<&str,
-       Vec<(&str, Option<&str>)> >,
-       separated_nonempty_list!(
-           char!(','),
-           tuple!(take_while!(is_digit),
-                  opt!(preceded!(char!('-'),
-                                 take_while!(is_digit))
-                  )
-           )
-       )
-);
- */
 fn listexpr(input: &[u8]) -> IResult<&[u8], RangeList>
 {
     let digits = take_digits;
@@ -133,10 +119,6 @@ fn listexpr(input: &[u8]) -> IResult<&[u8], RangeList>
 }
 
 // A range (something enclosed with [])
-/*named!(range<&str,
-       Vec<(&str, Option<&str>)> >,
-       delimited!(char!('['), listexpr, char!(']'))
-); */
 fn range(input: &[u8]) -> IResult<&[u8], RangeList>
 {
     let r = delimited(tag("["), listexpr, tag("]"));
@@ -144,12 +126,6 @@ fn range(input: &[u8]) -> IResult<&[u8], RangeList>
 }
 
 // hostname-ranges pair, e.g. foo[N-M][NN-MM]
-/*named!(hnrangepair<&str,
-       (Option<&str>,
-        Option<Vec<(&str, Option<&str>)> >) >,
-       tuple!(
-           opt!(hostname_part), opt!(range))
-);*/
 fn hnrangepair(input: &[u8]) -> IResult<&[u8],
                                         (&[u8],
                                          Vec<RangeList>)>
@@ -159,11 +135,6 @@ fn hnrangepair(input: &[u8]) -> IResult<&[u8],
 }
 
 // A complete hostlist, e.g. foo[1-3]bar[4-5][5-6],baz[1-3]
-/*named!(hostlist<&str,
-       Vec<(Option<&str>,
-       Option<Vec<(&str, Option<&str>)> >) >>,
-       many1!(hnrangepair)
-);*/
 fn hostlist(input: &[u8]) -> IResult<&[u8],
                                      Vec<Vec<(&[u8],
                                           Vec<RangeList>)>>>
@@ -174,10 +145,7 @@ fn hostlist(input: &[u8]) -> IResult<&[u8],
 }
 
 
-//
-
-//fn cartesian<T: Add>(v1: &[T], v2: &[T]) -> Vec<T>
-//fn cartesian(v1: &[String], v2: &[String]) -> Vec<String>
+// Cartesian multiplication of strings
 fn cartesian<T: AsRef<str> + ToString>(v1: &[T], v2: &[T]) -> Vec<String>
 {
     let oldsz = v1.len();
@@ -188,8 +156,6 @@ fn cartesian<T: AsRef<str> + ToString>(v1: &[T], v2: &[T]) -> Vec<String>
             let mut t: String = e1.to_string();
             t.push_str(e2.to_string().as_str());
             res.push(t);
-            //res.push([e1, e2].concat());
-            //res.push(e1.push_str(e2));
         }
     }
     res
