@@ -36,7 +36,18 @@ use nom::combinator::opt;
 use nom::multi::many0;
 use nom::multi::separated_nonempty_list;
 use std::str;
-use std::collections::BTreeSet;
+
+struct DigitInfo {
+    value: u32,
+    leading_zeros: usize,
+    num_digits: usize,
+}
+
+#[derive(Debug)]
+struct RangeList {
+    ranges: Vec<(u32, u32)>,
+    num_digits: usize,
+}
 
 // A name component part of a hostlist, before the hostlist syntax begins
 //named!(hostname_part<&str, &str>, take_while!(|ch| ch != '['));
@@ -48,7 +59,7 @@ fn hostname_part(input: &[u8]) -> IResult<&[u8], &[u8]>
 
 // take_digits taken from https://github.com/badboy/iso8601 (MIT
 // licensed)
-fn take_digits(i: &[u8]) -> IResult<&[u8], u32> {
+fn take_digits(i: &[u8]) -> IResult<&[u8], DigitInfo> {
     let (i, digits) = take_while(is_digit)(i)?;
 
     if digits.is_empty() {
@@ -60,7 +71,17 @@ fn take_digits(i: &[u8]) -> IResult<&[u8], u32> {
         .parse()
         .expect("Invalid string, expected ASCII representation of a number");
 
-    Ok((i, res))
+    let mut clz = 0;
+    for &c in digits {
+        if c == b'0' {
+            clz += 1;
+        }
+        else {
+            break;
+        }
+    }
+    let di = DigitInfo {value: res, leading_zeros: clz, num_digits: digits.len()};
+    Ok((i, di))
 }
 
 // A hostlist list expressions, the stuff within []. E.g. 1,2,5-6,9
@@ -77,12 +98,38 @@ named!(listexpr<&str,
        )
 );
  */
-fn listexpr(input: &[u8]) -> IResult<&[u8], Vec<(u32, Option<u32>)> >
+fn listexpr(input: &[u8]) -> IResult<&[u8], RangeList>
 {
     let digits = take_digits;
     let range = tuple((&digits, opt(preceded(tag("-"), &digits))));
     let snl = separated_nonempty_list(tag(","), range);
-    snl(input)
+    let (i, les) = snl(input)?;
+    let mut ri = RangeList { ranges: Vec::new(), num_digits: 0};
+    let mut max_lz = 0;
+    for le in les {
+        if le.0.leading_zeros > max_lz {
+            max_lz = le.0.leading_zeros;
+            ri.num_digits = le.0.num_digits;
+        }
+        let mut vals = (le.0.value, le.0.value);
+        match le.1 {
+            Some(u) => {
+                if u.value >= le.0.value {
+                    vals.1 = u.value;
+                }
+                else {
+                    vals = (u.value, le.0.value);
+                }
+                if u.leading_zeros > max_lz {
+                    max_lz = u.leading_zeros;
+                    ri.num_digits = u.num_digits;
+                }
+            }
+            None => {}
+        }
+        ri.ranges.push(vals);
+    }
+    Ok((i, ri))
 }
 
 // A range (something enclosed with [])
@@ -90,7 +137,7 @@ fn listexpr(input: &[u8]) -> IResult<&[u8], Vec<(u32, Option<u32>)> >
        Vec<(&str, Option<&str>)> >,
        delimited!(char!('['), listexpr, char!(']'))
 ); */
-fn range(input: &[u8]) -> IResult<&[u8], Vec<(u32, Option<u32>)> >
+fn range(input: &[u8]) -> IResult<&[u8], RangeList>
 {
     let r = delimited(tag("["), listexpr, tag("]"));
     r(input)
@@ -105,7 +152,7 @@ fn range(input: &[u8]) -> IResult<&[u8], Vec<(u32, Option<u32>)> >
 );*/
 fn hnrangepair(input: &[u8]) -> IResult<&[u8],
                                         (&[u8],
-                                         Vec<Vec<(u32, Option<u32>)>>)>
+                                         Vec<RangeList>)>
 {
     let t = pair(hostname_part, many0(range));
     t(input)
@@ -119,12 +166,35 @@ fn hnrangepair(input: &[u8]) -> IResult<&[u8],
 );*/
 fn hostlist(input: &[u8]) -> IResult<&[u8],
                                      Vec<Vec<(&[u8],
-                                          Vec<Vec<(u32, Option<u32>)>>)>>>
+                                          Vec<RangeList>)>>>
 {
     let m = many0(hnrangepair);
     let snl = separated_nonempty_list(tag(","), m);
     snl(input)
 }
+
+
+//
+
+//fn cartesian<T: Add>(v1: &[T], v2: &[T]) -> Vec<T>
+//fn cartesian(v1: &[String], v2: &[String]) -> Vec<String>
+fn cartesian<T: AsRef<str> + ToString>(v1: &[T], v2: &[T]) -> Vec<String>
+{
+    let oldsz = v1.len();
+    let mut res = Vec::with_capacity(oldsz * v2.len());
+    for e1 in v1 {
+        for e2 in v2 {
+            // TODO: Is this dance really needed to concatenate two &[T]'s?
+            let mut t: String = e1.to_string();
+            t.push_str(e2.to_string().as_str());
+            res.push(t);
+            //res.push([e1, e2].concat());
+            //res.push(e1.push_str(e2));
+        }
+    }
+    res
+}
+
 
 /// Expand a hostlist to a vector of hostnames
 ///
@@ -141,47 +211,29 @@ pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
         Ok((_, o)) => o,
         _ => return Err("Invalid hostlist"),
     };
-    let mut allres = BTreeSet::new();
+    let mut allres = Vec::new();
     for e in &parsed {
-        let mut res: Vec<String> = Vec::new();
+        let mut res: Vec<String> = vec!["".to_string()];
         for rangepair in e {
             let base = str::from_utf8(&rangepair.0).unwrap();
-            if rangepair.1.len() == 0 {
-                res.push(base.to_string());
-            };
+            let mut res2 = vec![base.to_string()];
             for range in &rangepair.1 {
-                for r2 in range {
-                    let idx = r2.0;
-                    res.push(format!("{}{}", base, idx));
-                    match r2.1 {
-                        // An upper part of a range
-                        Some(u) => {
-                            let idxu = u;
-                            if idx <= idxu {
-                                for i in idx..idxu {
-                                    res.push(format!("{}{}", base, i + 1));
-                                }
-                            }
-                            else {
-                                for i in idxu..idx {
-                                    res.push(format!("{}{}", base, i));
-                                }
-                            }
-                        }
-                        None => continue,
+                let mut res3: Vec<String> = Vec::new();
+                for r2 in &range.ranges {
+                    for i in r2.0..(r2.1 + 1) {
+                        // {:08} - field width 8, pad with zeros at front
+                        res3.push(format!("{:0width$}", i, width=range.num_digits));
                     }
                 }
+                res2 = cartesian(&res2, &res3);
             }
+            res = cartesian(&res, &res2);
         }
         for host in res {
-            allres.insert(host);
+            allres.push(host);
         }
     }
-    let mut allresvec: Vec<String> = Vec::new();
-    for ar in &allres {
-        allresvec.push(ar.to_string());
-    }
-    Ok(allresvec)
+    Ok(allres)
 }
 
 // Tests of private functions
@@ -201,7 +253,7 @@ fn listexpr_1() {
     let le = b"1";
     let res = listexpr(le);
     let out = match res {
-        Ok((_, o)) => o[0].0,
+        Ok((_, o)) => o.ranges[0].0,
         _ => panic!(),
     };
     assert_eq!(out, 1);
@@ -215,10 +267,10 @@ fn listexpr_2() {
         Ok((_, o)) => o,
         _ => panic!(),
     };
-    assert_eq!(out[0].0, 1);
-    assert_eq!(out[1].0, 2);
-    assert_eq!(out[2].0, 3);
-    assert_eq!(out[2].1.unwrap(), 5);
+    assert_eq!(out.ranges[0].0, 1);
+    assert_eq!(out.ranges[1].0, 2);
+    assert_eq!(out.ranges[2].0, 3);
+    assert_eq!(out.ranges[2].1, 5);
 }
 
 #[test]
@@ -232,10 +284,10 @@ fn hostrange() {
             panic!();
         }
     };
-    assert_eq!(out[0].0, 1);
-    assert_eq!(out[1].0, 2);
-    assert_eq!(out[2].0, 3);
-    assert_eq!(out[2].1.unwrap(), 5);
+    assert_eq!(out.ranges[0].0, 1);
+    assert_eq!(out.ranges[1].0, 2);
+    assert_eq!(out.ranges[2].0, 3);
+    assert_eq!(out.ranges[2].1, 5);
 }
 
 /*
@@ -267,10 +319,10 @@ fn hnrangepair_1() {
     };
     assert_eq!(str::from_utf8(&out.0).unwrap(), "foo");
     let r = &out.1[0];
-    assert_eq!(r[0].0, 1);
-    assert_eq!(r[1].0, 2);
-    assert_eq!(r[2].0, 3);
-    assert_eq!(r[2].1.unwrap(), 5);
+    assert_eq!(r.ranges[0].0, 1);
+    assert_eq!(r.ranges[1].0, 2);
+    assert_eq!(r.ranges[2].0, 3);
+    assert_eq!(r.ranges[2].1, 5);
 }
 
 #[test]
@@ -320,10 +372,10 @@ fn hostlist_1() {
     };
     assert_eq!(str::from_utf8(&out[0][0].0).unwrap(), "foo");
     let r = &out[0][0].1[0];
-    assert_eq!(r[0].0, 1);
-    assert_eq!(r[1].0, 2);
-    assert_eq!(r[2].0, 3);
-    assert_eq!(r[2].1.unwrap(), 5);
+    assert_eq!(r.ranges[0].0, 1);
+    assert_eq!(r.ranges[1].0, 2);
+    assert_eq!(r.ranges[2].0, 3);
+    assert_eq!(r.ranges[2].1, 5);
 }
 
 /*
@@ -340,6 +392,18 @@ fn hostlist_empty() {
     assert_eq!(out[0].0, b"");
 }
 */
+
+#[test]
+fn test_cartesian() {
+    let a = vec!["ab", "c"];
+    let b = vec!["1", "23"];
+    let r = cartesian(&a, &b);
+    assert_eq!("ab1", r[0]);
+    assert_eq!("ab23", r[1]);
+    assert_eq!("c1", r[2]);
+    assert_eq!("c23", r[3]);
+    assert_eq!(4, r.len());
+}
 
 // Tests of public functions
 #[cfg(test)]
