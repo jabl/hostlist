@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2016-2019 Janne Blomqvist
+Copyright (c) 2016-2020 Janne Blomqvist
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -317,11 +317,11 @@ fn hnrangepair_rangeonly() {
             panic!();
         }
     };
-    let r = &out.1.unwrap();
-    assert_eq!(r[0].0, 1);
-    assert_eq!(r[1].0, 2);
-    assert_eq!(r[2].0, 3);
-    assert_eq!(r[2].1.unwrap(), 5);
+    let r = &out.1;
+    assert_eq!(r[0].ranges[0].0, 1);
+    //assert_eq!(r[1].0, 2);
+    //assert_eq!(r[2].0, 3);
+    //assert_eq!(r[2].1.unwrap(), 5);
 }
 */
 
@@ -355,7 +355,7 @@ fn hostlist_empty() {
             panic!();
         }
     };
-    assert_eq!(out[0].0, b"");
+    assert_eq!(out[0][0].0, b"");
 }
 */
 
