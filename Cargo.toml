@@ -17,5 +17,5 @@ name = "hostlist"
 required-features = ["clap"]
 
 [dependencies]
-nom = { version = "^5.0" }
+nom = { version = "^6.0" }
 clap = { version = "2", optional = true }

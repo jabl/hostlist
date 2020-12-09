@@ -34,7 +34,7 @@ use nom::sequence::tuple;
 use nom::sequence::pair;
 use nom::combinator::opt;
 use nom::multi::many0;
-use nom::multi::separated_nonempty_list;
+use nom::multi::separated_list1;
 use std::str;
 
 struct DigitInfo {
@@ -62,7 +62,10 @@ fn take_digits(i: &[u8]) -> IResult<&[u8], DigitInfo> {
     let (i, digits) = take_while(is_digit)(i)?;
 
     if digits.is_empty() {
-        return Err(nom::Err::Error((i, nom::error::ErrorKind::Eof)));
+        return Err(nom::Err::Error(nom::error::Error {
+            input: i,
+            code: nom::error::ErrorKind::Eof
+        }));
     }
 
     let s = str::from_utf8(digits).expect("Invalid data, expected UTF-8 string");
@@ -88,7 +91,7 @@ fn listexpr(input: &[u8]) -> IResult<&[u8], RangeList>
 {
     let digits = take_digits;
     let range = tuple((&digits, opt(preceded(tag("-"), &digits))));
-    let snl = separated_nonempty_list(tag(","), range);
+    let mut snl = separated_list1(tag(","), range);
     let (i, les) = snl(input)?;
     let mut ri = RangeList { ranges: Vec::new(), num_digits: 0};
     let mut max_lz = 0;
@@ -121,7 +124,7 @@ fn listexpr(input: &[u8]) -> IResult<&[u8], RangeList>
 // A range (something enclosed with [])
 fn range(input: &[u8]) -> IResult<&[u8], RangeList>
 {
-    let r = delimited(tag("["), listexpr, tag("]"));
+    let mut r = delimited(tag("["), listexpr, tag("]"));
     r(input)
 }
 
@@ -130,7 +133,7 @@ fn hnrangepair(input: &[u8]) -> IResult<&[u8],
                                         (&[u8],
                                          Vec<RangeList>)>
 {
-    let t = pair(hostname_part, many0(range));
+    let mut t = pair(hostname_part, many0(range));
     t(input)
 }
 
@@ -140,7 +143,7 @@ fn hostlist(input: &[u8]) -> IResult<&[u8],
                                           Vec<RangeList>)>>>
 {
     let m = many0(hnrangepair);
-    let snl = separated_nonempty_list(tag(","), m);
+    let mut snl = separated_list1(tag(","), m);
     snl(input)
 }
 
