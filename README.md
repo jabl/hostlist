@@ -1,6 +1,8 @@
 Hostlist
 ========
 
+![Rust](https://github.com/jabl/hostlist/workflows/Rust/badge.svg)
+
 [![Build Status](https://travis-ci.org/jabl/hostlist.svg?branch=master)](https://travis-ci.org/jabl/hostlist)
 
 This is a Rust implementation of a hostlist library. Hostlists are a
