@@ -1,7 +1,7 @@
 Hostlist
 ========
 
-![Rust](https://github.com/jabl/hostlist/workflows/Rust/badge.svg)
+![Build of master branch](https://github.com/jabl/hostlist/workflows/Rust/badge.svg)
 
 This is a Rust implementation of a hostlist library. Hostlists are a
 syntax for expressing multiple hosts, commonly used in
