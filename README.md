@@ -12,7 +12,7 @@ type compute{1..3}.
 Some other tools and applications supporting hostlists are
 
 - [Slurm](http://slurm.schedmd.com/)
-- [pdsh](https://github.com/grondo/pdsh)
+- [pdsh](https://github.com/chaos/pdsh)
 - [genders](https://github.com/chaos/genders)
 - [GNU FreeIPMI](https://www.gnu.org/software/freeipmi/)
 
