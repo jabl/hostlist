@@ -1,6 +1,6 @@
 [package]
 name = "hostlist"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Janne Blomqvist <blomqvist.janne@gmail.com>"]
 edition = "2018"
 description = "Hostlist library for Rust and CLI app"
@@ -15,9 +15,6 @@ default = ["clap"]
 [[bin]]
 name = "hostlist"
 required-features = ["clap"]
-
-[badges]
-travis-ci = { repository = "jabl/hostlist" }
 
 [dependencies]
 nom = { version = "^5.0" }
