@@ -24,17 +24,17 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  */
 
-use nom::*;
-use nom::character::is_digit;
-use nom::bytes::complete::{take_while, take_while1};
 use nom::bytes::complete::tag;
-use nom::sequence::delimited;
-use nom::sequence::preceded;
-use nom::sequence::tuple;
-use nom::sequence::pair;
+use nom::bytes::complete::{take_while, take_while1};
+use nom::character::is_digit;
 use nom::combinator::opt;
 use nom::multi::many0;
 use nom::multi::separated_list1;
+use nom::sequence::delimited;
+use nom::sequence::pair;
+use nom::sequence::preceded;
+use nom::sequence::tuple;
+use nom::*;
 use std::str;
 
 struct DigitInfo {
@@ -50,8 +50,7 @@ struct RangeList {
 }
 
 // A name component part of a hostlist, before the hostlist syntax begins
-fn hostname_part(input: &[u8]) -> IResult<&[u8], &[u8]>
-{
+fn hostname_part(input: &[u8]) -> IResult<&[u8], &[u8]> {
     let hpart = take_while1(|ch| (ch != b'[' && ch != b','));
     hpart(input)
 }
@@ -64,7 +63,7 @@ fn take_digits(i: &[u8]) -> IResult<&[u8], DigitInfo> {
     if digits.is_empty() {
         return Err(nom::Err::Error(nom::error::Error {
             input: i,
-            code: nom::error::ErrorKind::Eof
+            code: nom::error::ErrorKind::Eof,
         }));
     }
 
@@ -77,23 +76,28 @@ fn take_digits(i: &[u8]) -> IResult<&[u8], DigitInfo> {
     for &c in digits {
         if c == b'0' {
             clz += 1;
-        }
-        else {
+        } else {
             break;
         }
     }
-    let di = DigitInfo {value: res, leading_zeros: clz, num_digits: digits.len()};
+    let di = DigitInfo {
+        value: res,
+        leading_zeros: clz,
+        num_digits: digits.len(),
+    };
     Ok((i, di))
 }
 
 // A hostlist list expressions, the stuff within []. E.g. 1,2,5-6,9
-fn listexpr(input: &[u8]) -> IResult<&[u8], RangeList>
-{
+fn listexpr(input: &[u8]) -> IResult<&[u8], RangeList> {
     let digits = take_digits;
     let range = tuple((&digits, opt(preceded(tag("-"), &digits))));
     let mut snl = separated_list1(tag(","), range);
     let (i, les) = snl(input)?;
-    let mut ri = RangeList { ranges: Vec::new(), num_digits: 0};
+    let mut ri = RangeList {
+        ranges: Vec::new(),
+        num_digits: 0,
+    };
     let mut max_lz = 0;
     for le in les {
         if le.0.leading_zeros > max_lz {
@@ -105,8 +109,7 @@ fn listexpr(input: &[u8]) -> IResult<&[u8], RangeList>
             Some(u) => {
                 if u.value >= le.0.value {
                     vals.1 = u.value;
-                }
-                else {
+                } else {
                     vals = (u.value, le.0.value);
                 }
                 if u.leading_zeros > max_lz {
@@ -122,35 +125,26 @@ fn listexpr(input: &[u8]) -> IResult<&[u8], RangeList>
 }
 
 // A range (something enclosed with [])
-fn range(input: &[u8]) -> IResult<&[u8], RangeList>
-{
+fn range(input: &[u8]) -> IResult<&[u8], RangeList> {
     let mut r = delimited(tag("["), listexpr, tag("]"));
     r(input)
 }
 
 // hostname-ranges pair, e.g. foo[N-M][NN-MM]
-fn hnrangepair(input: &[u8]) -> IResult<&[u8],
-                                        (&[u8],
-                                         Vec<RangeList>)>
-{
+fn hnrangepair(input: &[u8]) -> IResult<&[u8], (&[u8], Vec<RangeList>)> {
     let mut t = pair(hostname_part, many0(range));
     t(input)
 }
 
 // A complete hostlist, e.g. foo[1-3]bar[4-5][5-6],baz[1-3]
-fn hostlist(input: &[u8]) -> IResult<&[u8],
-                                     Vec<Vec<(&[u8],
-                                          Vec<RangeList>)>>>
-{
+fn hostlist(input: &[u8]) -> IResult<&[u8], Vec<Vec<(&[u8], Vec<RangeList>)>>> {
     let m = many0(hnrangepair);
     let mut snl = separated_list1(tag(","), m);
     snl(input)
 }
 
-
 // Cartesian multiplication of strings
-fn cartesian<T: AsRef<str> + ToString>(v1: &[T], v2: &[T]) -> Vec<String>
-{
+fn cartesian<T: AsRef<str> + ToString>(v1: &[T], v2: &[T]) -> Vec<String> {
     let oldsz = v1.len();
     let mut res = Vec::with_capacity(oldsz * v2.len());
     for e1 in v1 {
@@ -163,7 +157,6 @@ fn cartesian<T: AsRef<str> + ToString>(v1: &[T], v2: &[T]) -> Vec<String>
     }
     res
 }
-
 
 /// Expand a hostlist to a vector of hostnames
 ///
@@ -191,7 +184,7 @@ pub fn expand(a_str: &str) -> Result<Vec<String>, &'static str> {
                 for r2 in &range.ranges {
                     for i in r2.0..(r2.1 + 1) {
                         // {:08} - field width 8, pad with zeros at front
-                        res3.push(format!("{:0width$}", i, width=range.num_digits));
+                        res3.push(format!("{:0width$}", i, width = range.num_digits));
                     }
                 }
                 res2 = cartesian(&res2, &res3);
