@@ -3,8 +3,6 @@ Hostlist
 
 ![Rust](https://github.com/jabl/hostlist/workflows/Rust/badge.svg)
 
-[![Build Status](https://travis-ci.org/jabl/hostlist.svg?branch=master)](https://travis-ci.org/jabl/hostlist)
-
 This is a Rust implementation of a hostlist library. Hostlists are a
 syntax for expressing multiple hosts, commonly used in
 HPC. E.g. compute[1-3] => compute1, compute2, compute3. However it
